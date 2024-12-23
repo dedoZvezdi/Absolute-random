@@ -26,13 +26,6 @@ void static swapElements(int arr[], int size) {
     }
     arr[size - 1] = firstElement;
 }
-//oт тук започва моята история как исках да проверя разликата във всеки рън 
-//и ми отиде скрола на мишката
-
-//Сериозен коментар проверката може да я няма нищо се не чупи (освен скрола на мишката)
-//, но за да сме сигурни, че аз в бъдеще няма да оплескам нещо по файловете че вече 15 ръна не са малко
-//е хубаво да има една проверка дали правилно чете стойностите 
-//edit успях да го прецакам дори на правилна проверка avrg time и total tests са десимал
 
 map<int, AverageData> static readAverageHistory() {
     map<int, AverageData> history;
@@ -41,7 +34,7 @@ map<int, AverageData> static readAverageHistory() {
         string line;
         while (getline(file, line)) {
             int swaps;
-            AverageData data;
+            AverageData data{};
             if (sscanf(line.c_str(), "%d swaps: %lf seconds (averaged %d times, total tests: %d)",
                 &swaps, &data.averageTime, &data.timesAveraged, &data.totalTests) == 4) {
                 history[swaps] = data;
@@ -52,27 +45,37 @@ map<int, AverageData> static readAverageHistory() {
     return history;
 }
 
-void static saveCumulativeAverage(const string& text) {
+void static saveCumulativeAverage(const map<int, AverageData>& averageHistory) {
     ofstream file("cumulative_averages.txt");
     if (file.is_open()) {
-        file << text;
+        for (const auto& pair : averageHistory) {
+            file << pair.first << " swaps: " << pair.second.averageTime << " seconds (averaged "
+                << pair.second.timesAveraged << " times, total tests: " << pair.second.totalTests << ")\n";
+        }
         file.close();
     }
     else {
-        cerr << "Error" << endl;
+        cerr << "Error1" << endl;
     }
 }
 
-void static saveComparisonLog(const string& text) {
+void static saveComparisonLog(const string& text, int logNumber) {
     ofstream file("performance_comparison.txt", ios::app);
     if (file.is_open()) {
+        if (logNumber == 1) {
+            file << "LOG 1 (Base, no comparison)\n";
+        }
+        else {
+            file << "LOG " << logNumber << " (Compared to LOG " << logNumber - 1 << "):\n";
+        }
         file << text;
         file.close();
     }
     else {
-        cerr << "Error" << endl;
+        cerr << "Error2" << endl;
     }
 }
+
 
 map<int, double> static readLastRun() {
     map<int, double> lastRun;
@@ -91,9 +94,7 @@ map<int, double> static readLastRun() {
     return lastRun;
 }
 
-//аз съм идиот, предобрих го в началота 3 часа и една мишка за 10 реда
-//човек еби му майката да проверя как се четат и записват данни от последният изпълнен код ми се счупи мишката.
-void saveLastRun(const map<int, double>& currentRun) {
+void static saveLastRun(const map<int, double>& currentRun) {
     ofstream file("last_run.txt");
     if (file.is_open()) {
         for (const auto& pair : currentRun) {
@@ -117,18 +118,30 @@ double static measureSwaps(int arr[], int size, int swaps, int tests) {
     return totalElapsed / tests;
 }
 
+void static saveRunHistory(const map<int, double>& currentRun, int runNumber) {
+    ofstream file("run_history.txt", ios::app);
+    if (file.is_open()) {
+        file << "Run " << runNumber << ":\n";
+        for (const auto& pair : currentRun) {
+            file << pair.first << " swaps: " << pair.second << " seconds\n";
+        }
+        file.close();
+    }
+    else {
+        cerr << "Error3" << endl;
+    }
+}
+
 int main() {
-    //трябва ли да се обеснявам защо масива е подреден не искам да реда а да видя скороста на брой размествания и 10 елемента ми харесва с 2 ще е същия кур
     int arr[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
     int size = sizeof(arr) / sizeof(arr[0]);
-    int tests = 1000; //променяай на воля тук 1000 теста са малко и 200 лева са много за една мишка 
+    int tests = 1000;
 
     vector<int> swapCounts;
     for (int i = 1; i <= 100; i++) {
         swapCounts.push_back(i);
     }
 
-    // Приемам дарения да си купя нова мишка
     map<int, AverageData> averageHistory = readAverageHistory();
     map<int, double> lastRun = readLastRun();
     map<int, double> currentRun;
@@ -137,23 +150,16 @@ int main() {
     ostringstream comparisonResult;
 
     bool isFirstRun = lastRun.empty();
-    if (isFirstRun) {
-        comparisonResult << "LOG 1 (No comparing)\n";
+    int runNumber = 1;
+
+    if (!averageHistory.empty()) {
+        runNumber = averageHistory.begin()->second.timesAveraged + 1;
     }
-    else {
-        comparisonResult << "LOG " << (averageHistory.empty() ? 1 : averageHistory.begin()->second.timesAveraged + 1) << ":\n";
-    }
-    // коментара е след 10 поредни старта на 1000 теста по 100 swapa 
-    //кой може да ми каже как на толкова много теста средната разлика може да е от близо 20%
-    //добре знам че 30 микросекудни са малко ама 20% разлика е много
-    //аз съм идиот част 2
+
     for (int swaps : swapCounts) {
         double currentTime = measureSwaps(arr, size, swaps, tests);
         currentRun[swaps] = currentTime;
 
-        //взимам средната стойност и я смятам на ново средно на средното 
-        //(знам че е грешно мързи ме да събирам всички данни от миналите изпълнения сучипих си мишката за простотията по-горе 
-        // и wtf stackoverflow помощнете на хората като питат с нормални отговори)
         AverageData& data = averageHistory[swaps];
         if (data.timesAveraged == 0) {
             data.averageTime = currentTime;
@@ -169,21 +175,17 @@ int main() {
         cumulativeResult << swaps << " swaps: " << data.averageTime << " seconds (averaged "
             << data.timesAveraged << " times, total tests: " << data.totalTests << ")\n";
 
-        // Еби му майката и на проверката човек press f to pay respect for the mouse
         if (!isFirstRun) {
             double diff = currentTime - lastRun[swaps];
             string comparison = diff > 0 ? "+" : "";
-            comparisonResult << " swaps: " << swaps << comparison << diff;
+            comparisonResult << swaps << " swaps: " << comparison << diff << endl;
         }
     }
 
-    saveCumulativeAverage(cumulativeResult.str());
-    saveComparisonLog(comparisonResult.str());
+    saveCumulativeAverage(averageHistory);
+    saveComparisonLog(comparisonResult.str(), runNumber);
     saveLastRun(currentRun);
-
-    cout << "Open the folder you now have txt files magic";
+    saveRunHistory(currentRun, runNumber);
 
     return 0;
 }
-
-//Бока знам че само ти ще четеш това знаеш ли сайт в който в момента да има намаления на мишки
